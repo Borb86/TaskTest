@@ -31,6 +31,8 @@ import {
   importSavePointData
 } from './db/savePoint.js';
 import {
+  DEFAULT_GEMINI_MODEL,
+  resolveGeminiModel,
   triageTaskWithGemini,
   evaluateEntryWithGemini,
   generateDailySummaryWithGemini,
@@ -486,7 +488,8 @@ function render() {
           profile,
           routines,
           showApiKey: state.showApiKey,
-          apiTestStatus: state.apiTestStatus
+          apiTestStatus: state.apiTestStatus,
+          draft: state.modal.draft
         });
         break;
       default:
@@ -1086,46 +1089,84 @@ document.addEventListener('click', async (event) => {
       break;
     }
 
-    case 'open-settings':
+    case 'open-settings': {
+      const p = state.snapshot.profile;
       state.apiTestStatus = '';
-      state.modal = { type: 'settings' };
+      state.modal = {
+        type: 'settings',
+        draft: {
+          character_name: p.character_name || 'Adventurer',
+          gemini_api_key: p.gemini_api_key || '',
+          gemini_model: resolveGeminiModel(p.gemini_model)
+        }
+      };
       render();
       break;
+    }
 
-    case 'toggle-show-api-key':
+    case 'toggle-show-api-key': {
+      if (state.modal?.type === 'settings') {
+        const nameEl = document.getElementById('settings-char-name');
+        const keyEl = document.getElementById('settings-api-key');
+        const modelEl = document.getElementById('settings-gemini-model');
+        state.modal.draft = {
+          character_name: nameEl ? nameEl.value : state.modal.draft?.character_name,
+          gemini_api_key: keyEl ? keyEl.value : state.modal.draft?.gemini_api_key,
+          gemini_model: modelEl ? modelEl.value : state.modal.draft?.gemini_model
+        };
+      }
       state.showApiKey = !state.showApiKey;
       render();
       break;
+    }
 
     case 'save-settings': {
       const nameEl = document.getElementById('settings-char-name');
       const keyEl = document.getElementById('settings-api-key');
       const modelEl = document.getElementById('settings-gemini-model');
       const profile = await db.get('character_profile', 'main');
+      const nextName = (nameEl?.value || '').trim() || 'Adventurer';
+      const nextKey = (keyEl?.value || '').trim();
+      const nextModel = resolveGeminiModel(modelEl?.value || state.modal?.draft?.gemini_model || DEFAULT_GEMINI_MODEL);
       await db.put('character_profile', {
         ...profile,
-        character_name: (nameEl?.value || '').trim() || 'Adventurer',
-        gemini_api_key: (keyEl?.value || '').trim(),
-        gemini_model: modelEl?.value || 'gemini-2.5-flash'
+        character_name: nextName,
+        gemini_api_key: nextKey,
+        gemini_model: nextModel
       });
+      if (state.modal?.type === 'settings') {
+        state.modal.draft = {
+          character_name: nextName,
+          gemini_api_key: nextKey,
+          gemini_model: nextModel
+        };
+      }
       await reloadSnapshot();
       render();
-      showToast('Settings saved locally.', 'success');
+      showToast(`Settings saved locally (${nextModel}).`, 'success');
       break;
     }
 
     case 'test-gemini-key': {
+      const nameEl = document.getElementById('settings-char-name');
       const keyEl = document.getElementById('settings-api-key');
       const modelEl = document.getElementById('settings-gemini-model');
       const key = (keyEl?.value || '').trim();
-      const model = modelEl?.value || 'gemini-2.5-flash';
-      state.apiTestStatus = 'Testing Gemini connection…';
+      const model = resolveGeminiModel(modelEl?.value || state.modal?.draft?.gemini_model || DEFAULT_GEMINI_MODEL);
+      if (state.modal?.type === 'settings') {
+        state.modal.draft = {
+          character_name: nameEl ? nameEl.value : state.modal.draft?.character_name,
+          gemini_api_key: keyEl ? keyEl.value : state.modal.draft?.gemini_api_key,
+          gemini_model: model
+        };
+      }
+      state.apiTestStatus = `Testing ${model} connection…`;
       render();
       try {
         const reply = await testGeminiApiKey(key, model);
         state.apiTestStatus = `✓ Connected (${model}): ${reply}`;
       } catch (err) {
-        state.apiTestStatus = `✕ Failed: ${err.message}`;
+        state.apiTestStatus = `✕ Failed (${model}): ${err.message}`;
       }
       render();
       break;

@@ -48,6 +48,12 @@ import {
   importSavePointData
 } from '../src/db/savePoint.js';
 
+import {
+  DEFAULT_GEMINI_MODEL,
+  AVAILABLE_GEMINI_MODELS,
+  resolveGeminiModel
+} from '../src/services/geminiApi.js';
+
 function assert(condition, message) {
   if (!condition) {
     throw new Error(`Assertion failed: ${message}`);
@@ -325,7 +331,7 @@ test('Save Point Round-Trip', 'Exports and imports all 7 IndexedDB object stores
       active_status_effects: ['Drained'],
       vacation_mode: false,
       gemini_api_key: 'test-key-local-only',
-      gemini_model: 'gemini-2.5-flash',
+      gemini_model: DEFAULT_GEMINI_MODEL,
       last_backup_at: null,
       week_starting_hp: 75,
       pending_weekly_report_week: null,
@@ -456,6 +462,18 @@ test('Save Point Round-Trip', 'Exports and imports all 7 IndexedDB object stores
   } finally {
     await testDb.deleteDatabase();
   }
+});
+
+/* ==================== 6. GEMINI MODEL DEFAULTS & MIGRATION ==================== */
+
+test('Gemini Config', 'Defaults to gemini-3.8-flash, includes gemini-3.8-flash-lite, and upgrades legacy models', () => {
+  assertEqual(DEFAULT_GEMINI_MODEL, 'gemini-3.8-flash', 'Default model is gemini-3.8-flash');
+  assert(AVAILABLE_GEMINI_MODELS.includes('gemini-3.8-flash'), 'Dropdown includes gemini-3.8-flash');
+  assert(AVAILABLE_GEMINI_MODELS.includes('gemini-3.8-flash-lite'), 'Dropdown includes gemini-3.8-flash-lite');
+  assert(!AVAILABLE_GEMINI_MODELS.includes('gemini-2.5-flash'), 'Deprecated gemini-2.5-flash removed');
+  assertEqual(resolveGeminiModel('gemini-2.5-flash'), 'gemini-3.8-flash', 'Legacy 2.5-flash migrates to 3.8-flash');
+  assertEqual(resolveGeminiModel('gemini-2.5-pro'), 'gemini-3.8-flash', 'Legacy 2.5-pro migrates to 3.8-flash');
+  assertEqual(resolveGeminiModel('gemini-3.8-flash-lite'), 'gemini-3.8-flash-lite', 'Preserves selected lightweight model');
 });
 
 /* ==================== RUNNER ==================== */

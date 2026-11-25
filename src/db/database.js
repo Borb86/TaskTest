@@ -12,6 +12,7 @@
 
 import { STAT_CODES, MONDAY_RESET_HP, TIER_XP } from '../core/rpgMath.js';
 import { formatLocalDate } from '../core/turnLogic.js';
+import { DEFAULT_GEMINI_MODEL, resolveGeminiModel } from '../services/geminiApi.js';
 
 export const DEFAULT_DB_NAME = 'borb_rpg_tracker_db';
 export const DB_VERSION = 1;
@@ -169,12 +170,20 @@ export class RpgDatabase {
         active_status_effects: [],
         vacation_mode: false,
         gemini_api_key: '',
-        gemini_model: 'gemini-2.5-flash',
+        gemini_model: DEFAULT_GEMINI_MODEL,
         last_backup_at: null,
         week_starting_hp: MONDAY_RESET_HP,
         pending_weekly_report_week: null,
         created_at: now.toISOString()
       });
+    } else {
+      const resolvedModel = resolveGeminiModel(existingProfile.gemini_model);
+      if (resolvedModel !== existingProfile.gemini_model) {
+        await this.put('character_profile', {
+          ...existingProfile,
+          gemini_model: resolvedModel
+        });
+      }
     }
 
     const existingStats = await this.getAll('stat_progress');

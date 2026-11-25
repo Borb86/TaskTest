@@ -27,7 +27,7 @@ import {
   needsBackupReminder,
   getDaysSinceBackup
 } from '../core/turnLogic.js';
-import { AVAILABLE_GEMINI_MODELS } from '../services/geminiApi.js';
+import { AVAILABLE_GEMINI_MODELS, resolveGeminiModel } from '../services/geminiApi.js';
 import { renderStatRadarSvg } from './radarChart.js';
 import { escapeHtml } from './components.js';
 
@@ -527,9 +527,17 @@ export function renderTaskOverrideModal({ task, isTriaging }) {
   `;
 }
 
-export function renderSettingsModal({ profile, routines, showApiKey, apiTestStatus }) {
+export function renderSettingsModal({ profile, routines, showApiKey, apiTestStatus, draft = null }) {
   const backupDue = needsBackupReminder(profile);
   const daysSince = getDaysSinceBackup(profile);
+  const charName = draft?.character_name ?? profile.character_name ?? 'Adventurer';
+  const apiKey = draft?.gemini_api_key ?? profile.gemini_api_key ?? '';
+  const selectedModel = resolveGeminiModel(draft?.gemini_model ?? profile.gemini_model);
+  const modelLabels = {
+    'gemini-3.8-flash': 'gemini-3.8-flash (Default)',
+    'gemini-3.8-flash-lite': 'gemini-3.8-flash-lite (Lightweight)',
+    'gemini-3.8-pro': 'gemini-3.8-pro'
+  };
 
   return `
     <div class="modal-backdrop">
@@ -548,7 +556,7 @@ export function renderSettingsModal({ profile, routines, showApiKey, apiTestStat
 
           <div class="field">
             <label class="field__label" for="settings-char-name">Character Name</label>
-            <input id="settings-char-name" class="field__input" type="text" value="${escapeHtml(profile.character_name || 'Adventurer')}" />
+            <input id="settings-char-name" class="field__input" type="text" value="${escapeHtml(charName)}" />
           </div>
 
           <div class="field">
@@ -560,7 +568,7 @@ export function renderSettingsModal({ profile, routines, showApiKey, apiTestStat
                 type="${showApiKey ? 'text' : 'password'}"
                 autocomplete="off"
                 placeholder="AIza…"
-                value="${escapeHtml(profile.gemini_api_key || '')}"
+                value="${escapeHtml(apiKey)}"
               />
               <button type="button" class="btn-secondary" style="width:auto; padding:0 12px;" data-action="toggle-show-api-key">
                 ${showApiKey ? 'Hide' : 'Show'}
@@ -573,7 +581,7 @@ export function renderSettingsModal({ profile, routines, showApiKey, apiTestStat
             <label class="field__label" for="settings-gemini-model">Gemini Model</label>
             <select id="settings-gemini-model" class="field__select">
               ${AVAILABLE_GEMINI_MODELS.map(
-                (m) => `<option value="${m}" ${(profile.gemini_model || 'gemini-2.5-flash') === m ? 'selected' : ''}>${m}</option>`
+                (m) => `<option value="${m}" ${selectedModel === m ? 'selected' : ''}>${modelLabels[m] || m}</option>`
               ).join('')}
             </select>
           </div>

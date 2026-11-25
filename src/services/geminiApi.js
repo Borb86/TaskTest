@@ -15,11 +15,23 @@ import {
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_TIMEOUT_MS = 15000;
 
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
+
 export const AVAILABLE_GEMINI_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.5-pro',
-  'gemini-2.0-flash'
+  'gemini-3.8-flash',
+  'gemini-3.8-flash-lite',
+  'gemini-3.8-pro'
 ];
+
+const LEGACY_MODELS = new Set(['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash']);
+
+export function resolveGeminiModel(model) {
+  const trimmed = typeof model === 'string' ? model.trim() : '';
+  if (!trimmed || LEGACY_MODELS.has(trimmed)) {
+    return DEFAULT_GEMINI_MODEL;
+  }
+  return trimmed;
+}
 
 export const TASK_TRIAGE_SCHEMA = {
   type: 'OBJECT',
@@ -114,7 +126,7 @@ const WEEKLY_REFLECTION_SCHEMA = {
 
 async function callGeminiStructured({
   apiKey,
-  model = 'gemini-2.5-flash',
+  model = DEFAULT_GEMINI_MODEL,
   systemInstruction,
   userPrompt,
   responseSchema,
@@ -130,7 +142,7 @@ async function callGeminiStructured({
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  const safeModel = (model || 'gemini-2.5-flash').trim();
+  const safeModel = resolveGeminiModel(model);
   const url = `${GEMINI_BASE_URL}/${encodeURIComponent(safeModel)}:generateContent?key=${encodeURIComponent(apiKey.trim())}`;
 
   try {
@@ -182,7 +194,7 @@ async function callGeminiStructured({
  * Flow 1: Task Triage via Gemini Structured Outputs.
  * Falls back to Pending Triage (Standard Quest / 35 XP) on offline/timeout/error.
  */
-export async function triageTaskWithGemini(rawText, apiKey, model = 'gemini-2.5-flash') {
+export async function triageTaskWithGemini(rawText, apiKey, model = DEFAULT_GEMINI_MODEL) {
   const systemInstruction = `You are an automated Dungeon Master (DM) for a personal tactical RPG life tracker.
 Analyze the user's natural-language task and classify it strictly into the JSON schema.
 
@@ -265,7 +277,7 @@ Rules:
 export async function evaluateEntryWithGemini(
   { entryType, rawText, userSentiment },
   apiKey,
-  model = 'gemini-2.5-flash'
+  model = DEFAULT_GEMINI_MODEL
 ) {
   const isJournal = entryType === 'Journal';
 
@@ -353,7 +365,7 @@ dm_note: concise 1-sentence tactical RPG Dungeon Master reflection acknowledging
 /**
  * End-of-Day Short Gemini Summary (with deterministic offline fallback).
  */
-export async function generateDailySummaryWithGemini(dayContext, apiKey, model = 'gemini-2.5-flash') {
+export async function generateDailySummaryWithGemini(dayContext, apiKey, model = DEFAULT_GEMINI_MODEL) {
   const fallback = buildLocalDailySummary(dayContext);
   if (!apiKey || !apiKey.trim()) {
     return { ok: false, summary: fallback, offline: true };
@@ -381,7 +393,7 @@ export async function generateDailySummaryWithGemini(dayContext, apiKey, model =
 /**
  * Weekly Report Gemini Reflection (with deterministic offline fallback).
  */
-export async function generateWeeklyReflectionWithGemini(weekContext, apiKey, model = 'gemini-2.5-flash') {
+export async function generateWeeklyReflectionWithGemini(weekContext, apiKey, model = DEFAULT_GEMINI_MODEL) {
   const fallback = buildLocalWeeklyReflection(weekContext);
   if (!apiKey || !apiKey.trim()) {
     return { ok: false, reflection: fallback, offline: true };
@@ -409,10 +421,11 @@ export async function generateWeeklyReflectionWithGemini(weekContext, apiKey, mo
 /**
  * Test Gemini API key connectivity from Settings.
  */
-export async function testGeminiApiKey(apiKey, model = 'gemini-2.5-flash') {
+export async function testGeminiApiKey(apiKey, model = DEFAULT_GEMINI_MODEL) {
+  const safeModel = resolveGeminiModel(model);
   const res = await callGeminiStructured({
     apiKey,
-    model,
+    model: safeModel,
     systemInstruction: 'Respond with a short 4-word RPG readiness confirmation.',
     userPrompt: 'Ping',
     responseSchema: DAILY_SUMMARY_SCHEMA,
