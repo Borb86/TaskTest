@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#000000"/>
+  <rect x="28" y="28" width="456" height="456" rx="72" fill="#0B0C10" stroke="#F5A623" stroke-width="10"/>
+  <!-- Tactical corner brackets -->
+  <path d="M68 112 V68 H112 M400 68 H444 V112 M444 400 V444 H400 M112 444 H68 V400" fill="none" stroke="#FFB830" stroke-width="12" stroke-linecap="square"/>
+  <!-- Hexagonal stat radar emblem -->
+  <polygon points="256,98 392,177 392,335 256,414 120,335 120,177" fill="rgba(245,166,35,0.14)" stroke="#F5A623" stroke-width="12"/>
+  <polygon points="256,144 352,200 352,312 256,368 160,312 160,200" fill="rgba(255,140,36,0.28)" stroke="#FFB830" stroke-width="8"/>
+  <!-- Inner tactical shield / sword crest -->
+  <path d="M256 176 L304 248 L256 332 L208 248 Z" fill="#F5A623"/>
+  <circle cx="256" cy="248" r="22" fill="#000000"/>
+</svg>
